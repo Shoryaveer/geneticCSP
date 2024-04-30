@@ -1,6 +1,12 @@
 from random import choices, choice, random, seed
 # from typing import Literal
 
+'''
+TODO:
+- make proper docs
+- make testing suite
+'''
+
 
 class BadGeneLength(Exception):
     pass
