@@ -1,8 +1,12 @@
 from random import choices, choice, random, seed
-from typing import Literal
+# from typing import Literal
 
 
 class BadGeneLength(Exception):
+    pass
+
+
+class BadMutationChance(Exception):
     pass
 
 
@@ -31,7 +35,7 @@ class Cgen():
             if i + 1 < len(self._population):  # Ensure there's a pair to crossover
 
                 if len(self._population[i]) != len(self._population[i+1]):
-                    raise BadGeneLength('The population given does not have uniform member length')
+                    raise BadGeneLength('The population given does not have uniform member length.')
 
                 # Generate two distinct points for crossover
                 point1, point2 = sorted(
@@ -46,26 +50,42 @@ class Cgen():
                     self._population[i][point1:point2], self._population[i+1][point1:point2] = \
                         self._population[i+1][point1:point2], self._population[i][point1:point2]
 
-    def _mutate_population(self, single_mutation: bool) -> None:
+    def _mutate_population(self, mutation_scope: list[list] | str, single_mutation: bool, mutation_chance: float) -> None:
+        # TODO: make it DRY
+        if mutation_chance < 0 or mutation_chance > 1:
+            raise BadMutationChance('Mutation chance can not be below 0 or greater than 1.')
 
         for i in range(len(self._population)):
             if single_mutation:
-                pass
+                if random() <= mutation_chance:
+                    mutation_index = choice(range(0, len(self._population[0])))
+                    if isinstance(mutation_scope, str):
+                        mutation = choice(mutation_scope)
+                    else:
+                        mutation = choice(mutation_scope[mutation_index])
+                    self._population[i][mutation_index] = mutation
+            else:
+                for j in range(len(self._population[0])):
+                    if random() <= mutation_chance:
+                        if isinstance(mutation_scope, str):
+                            mutation = choice(mutation_scope)
+                        else:
+                            mutation = choice(mutation_scope[j])
+                        self._population[i][j] = mutation
 
     def fit(self, population: list[list],
             fitness: callable,
             crossover: callable = None,
             generations: int = 20,
+            mutator: callable = None,
             single_mutation: bool = True,
             mutation_chance: float = 0.30,
-            mutation_scope: Literal['int', 'float', 'alpha'] | str = 'int',
+            mutation_scope: list[list] | str = None,
             likelihood_selection: bool = False,
             random_state: int = None):
 
         if random_state:
             seed(random_state)
-
-        self._mutation_scope = _get_mutation_(mutation_scope)
 
         self._population = population.copy()
 
@@ -76,6 +96,7 @@ class Cgen():
 
             # Selection
             if likelihood_selection:
+                # TODO: if there is too much saturation; reduce it, maybe try reduced replacement
                 # dead_index = choices(range(len(self._fit_scores)), weights=[1-x for x in self._fit_scores], k=1)
                 self._population = choices(self._population, weights=self._likelihood, k=len(self._population))
             else:
@@ -92,3 +113,7 @@ class Cgen():
                 self._two_point_crossover()
 
             # Mutation
+            if mutator:
+                mutator(self._population)
+            else:
+                self._mutate_population(mutation_scope, single_mutation, mutation_chance)
