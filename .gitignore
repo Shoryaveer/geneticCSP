@@ -1,3 +1,4 @@
 .flake8
 micell.txt
 genetic.py
+__pycache__

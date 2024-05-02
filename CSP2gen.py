@@ -1,5 +1,5 @@
 from random import choices, choice, random, seed
-# from typing import Literal
+from typing import Union
 
 '''
 TODO:
@@ -13,6 +13,10 @@ class BadGeneLength(Exception):
 
 
 class BadMutationChance(Exception):
+    pass
+
+
+class NoMutationScope(Exception):
     pass
 
 
@@ -56,28 +60,23 @@ class Cgen():
                     self._population[i][point1:point2], self._population[i+1][point1:point2] = \
                         self._population[i+1][point1:point2], self._population[i][point1:point2]
 
-    def _mutate_population(self, mutation_scope: list[list] | str, single_mutation: bool, mutation_chance: float) -> None:
-        # TODO: make it DRY
+    def _mutate_population(self, mutation_scope: Union[list[list], str], single_mutation: bool, mutation_chance: float) -> None:
         if mutation_chance < 0 or mutation_chance > 1:
             raise BadMutationChance('Mutation chance can not be below 0 or greater than 1.')
 
         for i in range(len(self._population)):
             if single_mutation:
-                if random() <= mutation_chance:
-                    mutation_index = choice(range(0, len(self._population[0])))
-                    if isinstance(mutation_scope, str):
-                        mutation = choice(mutation_scope)
-                    else:
-                        mutation = choice(mutation_scope[mutation_index])
-                    self._population[i][mutation_index] = mutation
+                mutation_indices = choice(range(0, len(self._population[0])))
             else:
-                for j in range(len(self._population[0])):
-                    if random() <= mutation_chance:
-                        if isinstance(mutation_scope, str):
-                            mutation = choice(mutation_scope)
-                        else:
-                            mutation = choice(mutation_scope[j])
-                        self._population[i][j] = mutation
+                mutation_indices = range(0, len(self._population[0]))
+
+            for j in mutation_indices:
+                if random() <= mutation_chance:
+                    if isinstance(mutation_scope, str):
+                        mutation = int(choice(mutation_scope))
+                    else:
+                        mutation = choice(mutation_scope[j])
+                    self._population[i][j] = mutation
 
     def fit(self, population: list[list],
             fitness: callable,
@@ -86,7 +85,7 @@ class Cgen():
             mutator: callable = None,
             single_mutation: bool = True,
             mutation_chance: float = 0.30,
-            mutation_scope: list[list] | str = None,
+            mutation_scope: Union[list[list], str] = None,
             likelihood_selection: bool = False,
             random_state: int = None):
 
@@ -122,4 +121,6 @@ class Cgen():
             if mutator:
                 mutator(self._population)
             else:
+                if not mutation_scope:
+                    raise NoMutationScope('No mutator or mutation scope found.')
                 self._mutate_population(mutation_scope, single_mutation, mutation_chance)
